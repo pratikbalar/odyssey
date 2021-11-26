@@ -1,0 +1,55 @@
+FROM ubuntu:focal as builder
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    lsb-release \
+    ca-certificates \
+    libssl-dev \
+    libldap-common \
+    gnupg \
+    openssl \
+    ldap-utils \
+    libldap-2.4-2 \
+    libldap-dev
+
+RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo postgresql-14 \
+    build-essential \
+    cmake \
+    gcc \
+    gdb \
+    libpam0g-dev \
+    valgrind \
+    libpq5 \
+    libpq-dev \
+    vim \
+    postgresql-common \
+    postgresql-server-dev-14
+
+COPY . /odyssey
+
+WORKDIR /odyssey/build
+
+RUN cmake -DCMAKE_BUILD_TYPE=Release .. && \
+ make -j$(nproc)
+
+FROM ubuntu:focal
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    lsb-release \
+    postgresql-common \
+    ca-certificates \
+    gnupg \
+    openssl
+RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo postgresql-14
+
+COPY odyssey-prod.conf /etc/odyssey/odyssey.conf
+COPY --from=builder /odyssey/docker/bin/ /usr/bin/
+COPY --from=builder /odyssey/build/sources/odyssey /usr/bin/odyssey

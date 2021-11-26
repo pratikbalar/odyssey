@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  odyssey:
+    image: docker.io/pratikimprowised/odyssey:dev
+    build:
+      dockerfile: ./docker/Dockerfile.prod
+      context: .
+    volumes:
+      - ./odyssey-prod.conf:/etc/odyssey/odyssey.conf:ro
+    entrypoint: ["/bin/sh"]
+    command:
+      - -c
+      - |
+        setup
+        ody-start
+
+  db:
+    image: postgres:12
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+
+  test:
+    image: governmentpaas/psql
+    entrypoint: ["/bin/sh"]
+    command:
+      - -cex
+      - |
+        sleep 5
+        apk --update add postgresql
+        psql -v ON_ERROR_STOP=1 "host=odyssey user=testuser password=testpass port=6432 dbname=testdb"
+        # pgbench -h odyssey -p 6432 -U testuser -i
+        # pgbench -h odyssey -p 6432 -U testuser -c 10 -j 2 -t 10000
+        tail -f /dev/null
