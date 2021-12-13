@@ -30,16 +30,8 @@ services:
     #   context: .
     volumes:
       - ./odyssey-prod.conf:/etc/odyssey/odyssey.conf:ro
-    entrypoint: ["/bin/sh"]
     depends_on:
       - db
-    command:
-      - "-cx"
-      - |
-        setup
-        # service postgresql stop
-        ody-start
-
   db:
     restart: always
     image: postgres:12
