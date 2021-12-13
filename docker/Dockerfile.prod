@@ -56,7 +56,7 @@ RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
     rm libprom.deb; \
     apt-get update && apt-get install -y --no-install-recommends \
     sudo postgresql-14; \
-    rm /etc/systemd/system/multi-user.target.wants/postgresql.service
+    rm -f /etc/systemd/system/multi-user.target.wants/postgresql.service /usr/lib/systemd/system/postgresql.service
 
 COPY odyssey-prod.conf /etc/odyssey/odyssey.conf
 COPY --from=builder /odyssey/docker/bin/ /usr/bin/
