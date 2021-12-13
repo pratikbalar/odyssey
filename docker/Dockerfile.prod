@@ -1,0 +1,64 @@
+FROM ubuntu:20.04 as builder
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    lsb-release \
+    ca-certificates \
+    libssl-dev \
+    libldap-common \
+    gnupg \
+    openssl \
+    ldap-utils \
+    libldap-2.4-2 \
+    libldap-dev
+
+RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
+    curl -LSso libprom.deb https://github.com/digitalocean/prometheus-client-c/releases/download/v0.1.3/libprom-dev-0.1.3-Linux.deb; \
+    dpkg -i libprom.deb
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sudo postgresql-14 \
+    build-essential \
+    cmake \
+    gcc \
+    gdb \
+    libpam0g-dev \
+    valgrind \
+    libpq5 \
+    libpq-dev \
+    vim \
+    postgresql-common \
+    postgresql-server-dev-14
+
+COPY . /odyssey
+
+WORKDIR /odyssey/build
+
+RUN cmake -DCMAKE_BUILD_TYPE=Release .. && \
+ make -j$(nproc)
+
+FROM ubuntu:20.04
+STOPSIGNAL SIGUSR2
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    lsb-release \
+    postgresql-common \
+    ca-certificates \
+    gnupg \
+    openssl
+
+RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - && \
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'; \
+    curl -LSso libprom.deb https://github.com/digitalocean/prometheus-client-c/releases/download/v0.1.3/libprom-dev-0.1.3-Linux.deb; \
+    dpkg -i libprom.deb; \
+    rm libprom.deb; \
+    apt-get update && apt-get install -y --no-install-recommends \
+    sudo postgresql-14; \
+    rm /etc/systemd/system/multi-user.target.wants/postgresql.service
+
+COPY odyssey-prod.conf /etc/odyssey/odyssey.conf
+COPY --from=builder /odyssey/docker/bin/ /usr/bin/
+COPY --from=builder /odyssey/build/sources/odyssey /usr/bin/odyssey
+RUN service postgresql stop
