@@ -1,18 +1,42 @@
-version: '3'
+version: "3"
 
 services:
+  directus:
+    image: directus/directus
+    restart: always
+    ports:
+      - 8055:8055
+    depends_on:
+      - odyssey
+      - db
+    environment:
+      KEY: "6116487b-cda1-52c2-b5b5-922530ec40b1"
+      SECRET: "255d861b-5ea1-5996-9aa3-c8022c45e263"
+      DB_CLIENT: "pg"
+      DB_HOST: "odyssey"
+      DB_PORT: "6432"
+      DB_DATABASE: "testdb"
+      DB_USER: "testuser"
+      DB_PASSWORD: "testpass"
+      ADMIN_EMAIL: "admin.directus@improwised.dev"
+      ADMIN_PASSWORD: "12345"
+
   odyssey:
-    image: docker.io/pratikimprowised/odyssey:dev
-    build:
-      dockerfile: ./docker/Dockerfile.prod
-      context: .
+    image: pratikimprowised/odyssey:prod
+    # image: pratikimprowise/odyssey:dev-1.2-4f028bf-1637916856
+    # build:
+    #   dockerfile: ./docker/Dockerfile.prod
+    #   context: .
     volumes:
       - ./odyssey-prod.conf:/etc/odyssey/odyssey.conf:ro
     entrypoint: ["/bin/sh"]
+    depends_on:
+      - db
     command:
       - -c
       - |
         setup
+        service postgresql stop
         ody-start
 
   db:
@@ -23,14 +47,16 @@ services:
       POSTGRES_DB: testdb
 
   test:
-    image: governmentpaas/psql
+    image: postgres
+    depends_on:
+      - db
+      - odyssey
     entrypoint: ["/bin/sh"]
     command:
       - -cex
       - |
-        sleep 5
-        apk --update add postgresql
-        psql -v ON_ERROR_STOP=1 "host=odyssey user=testuser password=testpass port=6432 dbname=testdb"
+        # apk --update add postgresql
+        # psql -v ON_ERROR_STOP=1 "host=odyssey user=testuser password=testpass port=6432 dbname=testdb"
         # pgbench -h odyssey -p 6432 -U testuser -i
         # pgbench -h odyssey -p 6432 -U testuser -c 10 -j 2 -t 10000
         tail -f /dev/null
